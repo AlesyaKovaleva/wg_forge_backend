@@ -32,8 +32,8 @@ def cats(data, session):
         except ValueError as e:
             sys.stderr.write(str(e))
             return Response(
-                code=409,
-                content="Invalid parameters",
+                code=400,
+                content="Bad request",
                 headers={"Content-type": "text/html"},
             )
 
