@@ -7,7 +7,9 @@ from cats_controllers import Response, cats, ping, post_cats
 from cats_sqlalhemy import db_session
 from settings import SERVER_PORT
 
-# from io import BytesIO
+
+# TODO переделать Response > возвращать только JSON
+# {"status": "Bad request", "exception": err.message}
 
 
 class Server(BaseHTTPRequestHandler):
@@ -32,15 +34,15 @@ class Server(BaseHTTPRequestHandler):
     def do_POST(self):
         content_length = int(self.headers["Content-Length"])
         body = self.rfile.read(content_length)
-        with db_session() as session:
-            self.server_response(*post_cats(body, session))
-        self.send_response(200)
-        self.end_headers()
-        # response = BytesIO()
-        # response.write(b'This is POST request. ')
-        # response.write(b'Received: ')
-        # response.write(body)
-        # self.wfile.write(response.getvalue())
+        try:
+            with db_session() as session:
+                self.server_response(*post_cats(body, session))
+        except SQLAlchemyError:
+            return Response(
+                code=500,
+                content="No connection with database",
+                headers={"Content-type": "text/html"},
+            )
 
     def server_response(self, code: int, context: str, headers: dict):
         self.send_response(code)

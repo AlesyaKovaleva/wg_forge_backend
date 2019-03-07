@@ -5,11 +5,13 @@ from collections import namedtuple
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 from sqlalchemy import asc, desc
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext import baked
 
 from cats_schema import CATS_SCHEMA
-from cats_sqlalhemy import Cats
-from helpers import validate_cats_params  # json_validator, schema_validator
+from cats_sqlalhemy import Cats, db_session
+from helpers import validate_cats_params
+
 
 Response = namedtuple("Response", "code content headers")
 
@@ -32,9 +34,7 @@ def cats(data, session):
         except ValueError as e:
             sys.stderr.write(str(e))
             return Response(
-                code=400,
-                content="Bad request",
-                headers={"Content-type": "text/html"},
+                code=400, content="Bad request", headers={"Content-type": "text/html"}
             )
 
         bakery = baked.bakery()
@@ -65,31 +65,39 @@ def cats(data, session):
 
 
 def post_cats(data: bytes, session):
-    # cats_str = data.decode("utf8").replace("'", '"')
-    # cats = json_validator(data)
-    # if cats:
-    #     cats_j = json.loads(data)
-    #     validation_cats = schema_validator(cats_j, CATS_SCHEMA)
-    # cats_json = json.dumps(cats)
-
     try:
         cats = json.loads(data)
         validate(cats, CATS_SCHEMA)
-        # return code 200
-    except json.JSONDecodeError:
-        pass  # invalid json 400
+    except json.JSONDecodeError as err:
+        return Response(
+            code=400,
+            content="Invalid JSON. %s" % err,  # !
+            headers={"Content-type": "text/html"},
+        )
     except ValidationError as err:
-        pass  # err.message, 400
+        return Response(
+            code=400,
+            content="Bad request. %s" % err.message,  # !
+            headers={"Content-type": "text/html"},
+        )
 
-    # проверка имени кота
-    # запись в базу
-
+    cats_names = [name[0] for name in session.query(Cats.name)]
+    if cats["name"].title() in cats_names:
+        return Response(
+            code=400,
+            content="Bad request. %s is already in the database" % cats["name"],  # !
+            headers={"Content-type": "text/html"},
+        )
+    session.add(
+        Cats(
+            name=cats["name"].title(),
+            color=cats["color"],
+            tail_length=cats["tail_length"],
+            whiskers_length=cats["whiskers_length"],
+        )
+    )
     return Response(
         code=201,
         content="Cat added successfully",
         headers={"Content-type": "text/html"},
     )
-
-    # return Response(
-    #     code=400, content="Bad request", headers={"Content-type": "text/html"}
-    # )
