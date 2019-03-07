@@ -1,15 +1,12 @@
+import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from cats_controllers import Response, cats, ping, post_cats
+from cats_controllers import cats, ping, post_cats
 from cats_sqlalhemy import db_session
 from settings import SERVER_PORT
-
-
-# TODO переделать Response > возвращать только JSON
-# {"status": "Bad request", "exception": err.message}
 
 
 class Server(BaseHTTPRequestHandler):
@@ -24,11 +21,18 @@ class Server(BaseHTTPRequestHandler):
                     self.server_response(*self.urls[real_path](data, session))
             else:
                 self.server_response(
-                    404, "Nothing found", {"Content-type": "text/html"}
+                    404,
+                    {"status": "Nothing found", "exception": ""},
+                    {"Content-type": "application/json"},
                 )
-        except SQLAlchemyError:
+        except SQLAlchemyError as err:
             self.server_response(
-                500, "No connection with database", {"Content-type": "text/html"}
+                500,
+                {
+                    "status": "No connection with database",
+                    "exception": str(err.__cause__),
+                },
+                {"Content-type": "application/json"},
             )
 
     def do_POST(self):
@@ -37,20 +41,26 @@ class Server(BaseHTTPRequestHandler):
         try:
             with db_session() as session:
                 self.server_response(*post_cats(body, session))
-        except SQLAlchemyError:
-            return Response(
-                code=500,
-                content="No connection with database",
-                headers={"Content-type": "text/html"},
+        except SQLAlchemyError as err:
+            self.server_response(
+                500,
+                {
+                    "status": "No connection with database",
+                    "exception": str(err.__cause__),
+                },
+                {"Content-type": "text/html"},
             )
 
-    def server_response(self, code: int, context: str, headers: dict):
+    def server_response(self, code: int, context: str, headers={}):
         self.send_response(code)
-        if headers:
-            for head in headers:
-                self.send_header(head, headers[head])
+        for head in headers:
+            self.send_header(head, headers[head])
         self.end_headers()
-        self.wfile.write(context.encode())
+
+        if headers.get("Content-type", "text/html").endswith("json"):
+            self.wfile.write(json.dumps(context).encode())
+        else:
+            self.wfile.write(str(context).encode())
 
 
 def run(server_class=HTTPServer, handler_class=Server, port=SERVER_PORT):

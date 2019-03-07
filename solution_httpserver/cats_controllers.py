@@ -1,6 +1,5 @@
 import json
 import sys
-from collections import namedtuple
 
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
@@ -13,15 +12,8 @@ from cats_sqlalhemy import Cats, db_session
 from helpers import validate_cats_params
 
 
-Response = namedtuple("Response", "code content headers")
-
-
 def ping(*args):
-    return Response(
-        code=200,
-        content="Cats Service. Version 0.1",
-        headers={"Content-type": "text/html"},
-    )
+    return (200, "Cats Service. Version 0.1", {"Content-type": "text/html"})
 
 
 def cats(data, session):
@@ -31,10 +23,11 @@ def cats(data, session):
             attr, order, offset, limit = validate_cats_params(data)
             if order and not attr:
                 raise ValueError
-        except ValueError as e:
-            sys.stderr.write(str(e))
-            return Response(
-                code=400, content="Bad request", headers={"Content-type": "text/html"}
+        except ValueError:
+            return (
+                400,
+                {"status": "Bad request.", "exception": ""},
+                {"Content-type": "application/json"},
             )
 
         bakery = baked.bakery()
@@ -57,11 +50,7 @@ def cats(data, session):
     for i in cats:
         cats_list.extend([i.to_dict()])
 
-    return Response(
-        code=200,
-        content=json.dumps(cats_list),
-        headers={"Content-type": "application/json"},
-    )
+    return (200, cats_list, {"Content-type": "application/json"})
 
 
 def post_cats(data: bytes, session):
@@ -69,24 +58,27 @@ def post_cats(data: bytes, session):
         cats = json.loads(data)
         validate(cats, CATS_SCHEMA)
     except json.JSONDecodeError as err:
-        return Response(
-            code=400,
-            content="Invalid JSON. %s" % err,  # !
-            headers={"Content-type": "text/html"},
+        return (
+            400,
+            {"status": "Invalid JSON.", "exception": err.msg},
+            {"Content-type": "application/json"},
         )
     except ValidationError as err:
-        return Response(
-            code=400,
-            content="Bad request. %s" % err.message,  # !
-            headers={"Content-type": "text/html"},
+        return (
+            400,
+            {"status": "Bad request.", "exception": err.message},
+            {"Content-type": "application/json"},
         )
 
     cats_names = [name[0] for name in session.query(Cats.name)]
     if cats["name"].title() in cats_names:
-        return Response(
-            code=400,
-            content="Bad request. %s is already in the database" % cats["name"],  # !
-            headers={"Content-type": "text/html"},
+        return (
+            400,
+            {
+                "status": "Bad request.",
+                "exception": "%s is already in the database" % cats["name"],
+            },
+            {"Content-type": "application/json"},
         )
     session.add(
         Cats(
@@ -96,8 +88,4 @@ def post_cats(data: bytes, session):
             whiskers_length=cats["whiskers_length"],
         )
     )
-    return Response(
-        code=201,
-        content="Cat added successfully",
-        headers={"Content-type": "text/html"},
-    )
+    return (201, "Cat added successfully", {"Content-type": "text/html"})

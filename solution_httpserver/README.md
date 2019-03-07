@@ -1,7 +1,7 @@
 Тестовое задание WG Forge (Backend)
 ----
 
-Тестовое задание выполнено на Python 3
+Тестовое задание выполнено на Python 3.6
 
 Для запуска проекта нужно запустить сервер PostgreSQL в подготовленом докер-контейнере.
 Инструкции по установке https://github.com/wgnet/wg_forge_backend/blob/master/docker_instructions.md
