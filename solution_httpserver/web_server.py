@@ -53,8 +53,8 @@ class Server(BaseHTTPRequestHandler):
 
     def server_response(self, code: int, context: str, headers={}):
         self.send_response(code)
-        for head in headers:
-            self.send_header(head, headers[head])
+        for key, value in headers.items():
+            self.send_header(key, value)
         self.end_headers()
 
         if headers.get("Content-type", "text/html").endswith("json"):

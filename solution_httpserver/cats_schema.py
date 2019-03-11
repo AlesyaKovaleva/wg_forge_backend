@@ -1,5 +1,5 @@
 CATS_SCHEMA = {
-    "$schema": "http://json-schema.org/shema#",
+    "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
     "properties": {
         "name": {"type": "string"},

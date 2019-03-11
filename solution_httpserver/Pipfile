@@ -8,6 +8,8 @@ sqlalchemy = "*"
 jsonschema = "*"
 black = "*"
 "psycopg2" = "*"
+mock = "*"
+sqlalchemy-utils = "*"
 
 [dev-packages]
 
